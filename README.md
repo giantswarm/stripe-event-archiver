@@ -43,12 +43,12 @@ The following keys are left empty in the example, which means that you either ha
 
 The rest of the configuration variables explained:
 
-- REDIS_HOST: hostname or IP address of the redis server. If not given, "redis" will be used.
-- REDIS_PORT: Port number of the redis server. If not set, 6379 will be used.
-- REDIS_RETENTION_DAYS: Expiry for keys in redis. 60 is the default here.
-- S3_ENDPOINT: AWS S3 endpoint to use
-- S3_BUCKET: Name of the S3 bucket to use
-- S3_PATH: Path to use within the S3 bucket. Can contain date-specific placeholders like `%Y`, `%m` and `%d`, which will be expanded with the respective values for the daily file.
+- `REDIS_HOST`: hostname or IP address of the redis server. If not given, "redis" will be used.
+- `REDIS_PORT`: Port number of the redis server. If not set, 6379 will be used.
+- `REDIS_RETENTION_DAYS`: Expiry for keys in redis. 60 is the default here.
+- `S3_ENDPOINT`: AWS S3 endpoint to use
+- `S3_BUCKET`: Name of the S3 bucket to use
+- `S3_PATH`: Path to use within the S3 bucket. Can contain date-specific placeholders like `%Y`, `%m` and `%d`, which will be expanded with the respective values for the daily file.
 
 ## File Encryption
 
