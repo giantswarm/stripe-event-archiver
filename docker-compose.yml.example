@@ -1,0 +1,21 @@
+version: "2"
+services:
+  archiver:
+    image: giantswarm/stripe-event-archiver:latest
+    environment:
+      STRIPE_API_KEY:
+      FILE_ENCRYPTION_PASSWORD:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_RETENTION_DAYS: 60
+      AWS_ACCESS_KEY_ID:
+      AWS_SECRET_ACCESS_KEY:
+      S3_ENDPOINT: s3-eu-west-1.amazonaws.com
+      S3_BUCKET: my-bucket
+      S3_PATH: backups/stripe-events/%Y
+    links:
+      - redis
+  redis:
+    image: redis:3.2
+    ports:
+      - "6379"
