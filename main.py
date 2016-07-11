@@ -122,7 +122,7 @@ def dump_to_file(daystring, events):
         hasher.update(j)
         dump += j
     sha1hash = hasher.hexdigest()
-    filename = daystring
+    filename = daystring + "_" + sha1hash[0:6] + ".jsonl"
 
     # write to file
     with open(filename, 'wb') as dumpfile:
@@ -131,7 +131,7 @@ def dump_to_file(daystring, events):
     del dump
 
     # encrypt file
-    new_filename = filename + "_" + sha1hash[0:6] + ".jsonl.aes-256-cbc"
+    new_filename = filename + ".aes-256-cbc"
     call(["openssl", "enc", "-aes-256-cbc", "-base64",
           "-pass", "env:FILE_ENCRYPTION_PASSWORD",
           "-in", filename, "-out", new_filename])
