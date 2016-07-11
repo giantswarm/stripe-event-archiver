@@ -1,6 +1,7 @@
 
 from datetime import datetime
 from datetime import timedelta
+from mycrypt import encrypt
 from redis import StrictRedis
 from requests.auth import HTTPBasicAuth
 from subprocess import call
@@ -24,6 +25,7 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 S3_ENDPOINT = os.getenv("S3_ENDPOINT")
 S3_BUCKET = os.getenv("S3_BUCKET")
 S3_PATH = os.getenv("S3_PATH")
+FILE_ENCRYPTION_PASSWORD = os.getenv("FILE_ENCRYPTION_PASSWORD")
 
 
 def archive_events():
@@ -122,22 +124,17 @@ def dump_to_file(daystring, events):
         hasher.update(j)
         dump += j
     sha1hash = hasher.hexdigest()
-    filename = daystring + "_" + sha1hash[0:6] + ".jsonl"
+    filename = daystring + "_" + sha1hash[0:6] + ".jsonl.aes-256-cbc"
 
-    # write to file
-    with open(filename, 'wb') as dumpfile:
+    # encrypt and write to file
+    with open(filename, 'w') as dumpfile:
         print("%s: Dumping to file %s" % (daystring, filename))
-        dumpfile.write(dump)
-    del dump
+        encrypted = encrypt(FILE_ENCRYPTION_PASSWORD, dump)
+        del dump
+        dumpfile.write(encrypted + "\n")  # trailing new line is important!
+        del encrypted
 
-    # encrypt file
-    new_filename = filename + ".aes-256-cbc"
-    call(["openssl", "enc", "-aes-256-cbc", "-base64",
-          "-pass", "env:FILE_ENCRYPTION_PASSWORD",
-          "-in", filename, "-out", new_filename])
-    os.remove(filename)
-
-    return new_filename
+    return filename
 
 
 def upload_backup(s3conn, local_path, target_path):
@@ -153,7 +150,7 @@ if __name__ == "__main__":
     # check for the existence of environment variables
     required_env_vars = ["STRIPE_API_KEY", "AWS_ACCESS_KEY_ID",
                      "AWS_SECRET_ACCESS_KEY", "S3_ENDPOINT",
-                     "S3_BUCKET"]
+                     "S3_BUCKET", "FILE_ENCRYPTION_PASSWORD"]
     missing_env_vars = []
     for v in required_env_vars:
         val = os.getenv(v)

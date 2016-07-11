@@ -52,21 +52,18 @@ The rest of the configuration variables explained:
 
 ## File Encryption
 
-The backup files are encrypted using `openssl` with the AES cypher algorithm. The passphrase configured via the environment variable `FILE_ENCRYPTION_PASSWORD` is passed to `openssl` using the `-pass` argument. This means that the actual encryption key is not the same as this passphrase. Instead, `openssl` derives the key from that passphrase.
-
-The command used for file _encryption_ looks roughly like this:
-
-```nohighlight
-openssl enc -aes-256-cbc -base64 -pass env:FILE_ENCRYPTION_PASSWORD -in <file> -out <file>
-```
+The backup files are encrypted using the AES cypher algorithm in CBC mode with 256 bit (32 Byte) block size. The encryption key is generated from the `FILE_ENCRYPTION_PASSWORD`, just like `openssl` does when using the `-pass` argument (together with the default `-md md5` for MD5 message digest and `-salt` for applying a random salt to the key).
 
 ## Decrypting Files
 
 The files can be decrypted using the `openssl` command line utility. With a backup file called `in.jsonl.aes-256-cbc` in your current directory, use the following command to extract the unencrypted JSON lines data.
 
-This requires the file encryption password in the environment variable named `FILE_ENCRYPTION_PASSWORD`.
+This requires the encryption password in the environment variable named `FILE_ENCRYPTION_PASSWORD`.
 
 ```nohighlight
 openssl aes-256-cbc -d -a -pass env:FILE_ENCRYPTION_PASSWORD -in in.jsonl.aes-256-cbc -out out.jsonl
 ```
 
+## Acknowledgements
+
+Thanks to [Joe Linoff](http://joelinoff.com/blog/?p=885) for providing code to create openssl-friendly data encryption in Python (contained as `mycrypt.py` and licensed under MIT-like terms).
