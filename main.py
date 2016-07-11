@@ -46,7 +46,6 @@ def archive_events():
     count = 0
     for event in fetch_events():
         event_datetime = datetime.fromtimestamp(event["created"])
-        datestring = event_datetime.isoformat()
         daystring = event_datetime.strftime("%Y-%m-%d")
         if daystring == nowstring:
             continue
