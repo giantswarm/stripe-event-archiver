@@ -144,9 +144,8 @@ def upload_backup(s3conn, local_path, target_path):
     """
     Uploads a backup file to S3
     """
-    file_pointer = open(local_path, "rb")
-    s3conn.upload(target_path, file_pointer)
-    file_pointer.close()
+    with open(local_path, "rb") as file_pointer:
+        s3conn.upload(target_path, file_pointer)
 
 
 if __name__ == "__main__":
