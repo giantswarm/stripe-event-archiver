@@ -1,9 +1,14 @@
-
+from base64 import b64encode
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from datetime import datetime
 from datetime import timedelta
-from mycrypt import encrypt
 from redis import StrictRedis
 from requests.auth import HTTPBasicAuth
+from StringIO import StringIO
 from subprocess import call
 import hashlib
 import json
@@ -25,8 +30,8 @@ AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 S3_ENDPOINT = os.getenv("S3_ENDPOINT")
 S3_BUCKET = os.getenv("S3_BUCKET")
 S3_PATH = os.getenv("S3_PATH")
-FILE_ENCRYPTION_PASSWORD = os.getenv("FILE_ENCRYPTION_PASSWORD")
 
+PUBLIC_KEY = None
 
 def archive_events():
     print("Starting to archive events.")
@@ -74,16 +79,8 @@ def archive_events():
                 continue
 
         try:
-            dt = datetime.strptime(daystring, "%Y-%m-%d")
-
-            filename = dump_to_file(daystring, events[daystring])
-            target_path = ""
-            if S3_PATH is not None:
-                target_path = dt.strftime(S3_PATH)
-            target_path += "/" + filename
-            upload_backup(s3, filename, target_path)
-            os.remove(filename)
-
+            target_path = upload_dump(daystring, events[daystring], s3)
+            print("Uploaded %s" % target_path)
             # write number of entries per day to redis
             redis.setex(daystring, redis_retention, str(len(events[daystring])))
         except Exception as ex:
@@ -113,7 +110,7 @@ def fetch_events():
             yield item
 
 
-def dump_to_file(daystring, events):
+def upload_dump(daystring, events, s3conn):
     """
     Creates a backup file from a list of events
     """
@@ -124,25 +121,60 @@ def dump_to_file(daystring, events):
         hasher.update(j)
         dump += j
     sha1hash = hasher.hexdigest()
-    filename = daystring + "_" + sha1hash[0:6] + ".jsonl.aes-256-cbc"
+    filename = daystring + "_" + sha1hash[0:6] + ".jsonl.enc"
 
-    # encrypt and write to file
-    with open(filename, 'w') as dumpfile:
-        print("%s: Dumping to file %s" % (daystring, filename))
-        encrypted = encrypt(FILE_ENCRYPTION_PASSWORD, dump)
-        del dump
-        dumpfile.write(encrypted + "\n")  # trailing new line is important!
-        del encrypted
+    # encrypt to string buffer
+    encrypted = encrypt(dump, PUBLIC_KEY)
+    del dump
+    output = StringIO(encrypted)
+    del encrypted
+    output.seek(0)
 
-    return filename
+    target_path = ""
+    if S3_PATH is not None:
+        dt = datetime.strptime(daystring, "%Y-%m-%d")
+        target_path = dt.strftime(S3_PATH)
+    target_path += "/" + filename
+    s3conn.upload(target_path, output)
+    output.close()
+
+    return target_path
 
 
-def upload_backup(s3conn, local_path, target_path):
-    """
-    Uploads a backup file to S3
-    """
-    with open(local_path, "rb") as file_pointer:
-        s3conn.upload(target_path, file_pointer)
+def encrypt(string, public_key):
+    # First we encode the string into one long line
+    # of base64 data, then chunk according to the key length
+    string = b64encode(string)
+    chunk_length = (public_key.key_size / 8) - 50
+    chunks = [string[i:i+chunk_length] for i in range(0, len(string), chunk_length)]
+    del string
+
+    # Now we encrypt chunk by chunk and write back
+    # one line per chunk, again base64 encoded
+    encrypted_text = ""
+    for chunk in chunks:
+        encrypted_chunk = public_key.encrypt(
+            chunk,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA1()),
+                algorithm=hashes.SHA1(),
+                label=None
+            )
+        )
+        encrypted_chunk = b64encode(encrypted_chunk)
+        encrypted_text += encrypted_chunk + "\n"
+
+    return encrypted_text
+
+
+def read_key(pem_path):
+    with open(pem_path, "r") as public_pem_file:
+        public_pem_data = public_pem_file.read()
+        public_key = load_pem_public_key(public_pem_data, backend=default_backend())
+
+    if not isinstance(public_key, rsa.RSAPublicKey):
+        raise Exception("Unexpectd key format: %s" % type(public_key))
+    return public_key
 
 
 if __name__ == "__main__":
@@ -150,7 +182,7 @@ if __name__ == "__main__":
     # check for the existence of environment variables
     required_env_vars = ["STRIPE_API_KEY", "AWS_ACCESS_KEY_ID",
                      "AWS_SECRET_ACCESS_KEY", "S3_ENDPOINT",
-                     "S3_BUCKET", "FILE_ENCRYPTION_PASSWORD"]
+                     "S3_BUCKET"]
     missing_env_vars = []
     for v in required_env_vars:
         val = os.getenv(v)
@@ -160,6 +192,8 @@ if __name__ == "__main__":
         sys.stderr.write("One or more required environment variables are missing: ")
         sys.stderr.write(", ".join(missing_env_vars) + "\n")
         sys.exit(1)
+
+    PUBLIC_KEY = read_key("./public_key.pem")
 
     while True:
         archive_events()

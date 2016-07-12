@@ -52,18 +52,53 @@ The rest of the configuration variables explained:
 
 ## File Encryption
 
-The backup files are encrypted using the AES cypher algorithm in CBC mode with 256 bit (32 Byte) block size. The encryption key is generated from the `FILE_ENCRYPTION_PASSWORD`, just like `openssl` does when using the `-pass` argument (together with the default `-md md5` for MD5 message digest and `-salt` for applying a random salt to the key).
+We are using an asymmetric encryption/decryption mechanism. The backup service only has knowledge of the public key for encrypting files. The private key required for decrypting files will be kept secret.
 
 ## Decrypting Files
 
-The files can be decrypted using the `openssl` command line utility. With a backup file called `in.jsonl.aes-256-cbc` in your current directory, use the following command to extract the unencrypted JSON lines data.
+See [`utils/`](utils/).
 
-This requires the encryption password in the environment variable named `FILE_ENCRYPTION_PASSWORD`.
+## Key Generation
+
+The encryption mechanism relies on an RSA public/private key pair.
+This key pair can be generated using the `ssh-keygen` command line utility.
+The key has to be of type `RSA` and has to be stored as PEM file (which is the default setting of `ssh-keygen` these days).
+Another setting you have influence on is the key size, which directly influences the strength of the encryption.
+A size of `4096` bit is recommended here.
+
+As a first step, generate a private key PEM file:
 
 ```nohighlight
-openssl aes-256-cbc -d -a -pass env:FILE_ENCRYPTION_PASSWORD -in in.jsonl.aes-256-cbc -out out.jsonl
+ssh-keygen -t rsa -b 4096 -f ./private_key.pem
 ```
 
-## Acknowledgements
+You'll be asked for a password twice. Take note of this password, as you will need it in the future for decrypting backup files.
 
-Thanks to [Joe Linoff](http://joelinoff.com/blog/?p=885) for providing code to create openssl-friendly data encryption in Python (contained as `mycrypt.py` and licensed under MIT-like terms).
+Then you can create the public key PEM file from the new key like this:
+
+```nohighlight
+ssh-keygen -e -m PEM -f ./private_key.pem > ./public_key.pem
+```
+
+## Building a Docker Image
+
+We run the archiver service in a Docker container.
+
+For the service to be able to encrypt the backup files, the `public_key.pem` file needs to be placed right in the root folder of this repository, so that it gets copied into the Docker image.
+
+To build the image, either use `make` or the long form:
+
+```nohighlight
+docker build -t stripe-event-archiver:latest .
+```
+
+You are of course free to name and tag the image however you like. If you change the name/tag, remember to update the `docker-compose.yml` in case you want to use that for a local test run. Which is highly recommended.
+
+## Test Run
+
+Once you have updated your `docker-compose.yml` and/or set local environment variables, fire it up!
+
+```
+docker-compose up
+```
+

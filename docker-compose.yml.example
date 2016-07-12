@@ -1,7 +1,7 @@
 version: "2"
 services:
   archiver:
-    image: giantswarm/stripe-event-archiver:latest
+    image: stripe-event-archiver:latest
     environment:
       STRIPE_API_KEY:
       FILE_ENCRYPTION_PASSWORD:

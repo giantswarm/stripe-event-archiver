@@ -2,4 +2,4 @@
 
 
 docker-build:
-	docker build -t giantswarm/stripe-event-archiver:latest .
+	docker build -t stripe-event-archiver:latest .
