@@ -84,7 +84,7 @@ ssh-keygen -e -m PEM -f ./private_key.pem > ./public_key.pem
 
 We run the archiver service in a Docker container.
 
-For the service to be able to encrypt the backup files, the `public_key.pem` file needs to be placed right in the root folder of this repository, so that it gets copied into the Docker image.
+For the service to be able to encrypt the backup files, the `public_key.pem` (see [Key Generation](#key-generation) above) file needs to be placed right in the root folder of this repository, so that it gets copied into the Docker image.
 
 To build the image, either use `make` or the long form:
 
