@@ -10,6 +10,7 @@ from redis import StrictRedis
 from requests.auth import HTTPBasicAuth
 from StringIO import StringIO
 from subprocess import call
+import backoff
 import hashlib
 import json
 import os
@@ -94,6 +95,9 @@ def archive_events():
     print("Done for today.")
 
 
+@backoff.on_exception(backoff.expo,
+                      requests.exceptions.ConnectionError,
+                      max_tries=8)
 def fetch_events():
     has_more = True
     params = {"limit": 100}
@@ -102,7 +106,6 @@ def fetch_events():
         r = requests.get("https://api.stripe.com/v1/events",
                          params=params,
                          auth=auth)
-        r.raise_for_status()
         j = r.json()
         has_more = j["has_more"]
         params["starting_after"] = j["data"][-1]["id"]
