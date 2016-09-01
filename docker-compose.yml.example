@@ -4,7 +4,6 @@ services:
     image: stripe-event-archiver:latest
     environment:
       STRIPE_API_KEY:
-      FILE_ENCRYPTION_PASSWORD:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_RETENTION_DAYS: 60

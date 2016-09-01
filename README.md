@@ -39,7 +39,6 @@ The following keys are left empty in the example, which means that you either ha
 - `STRIPE_API_KEY`: Your API key for Stripe
 - `AWS_ACCESS_KEY_ID`: The ID of an AWS identity
 - `AWS_SECRET_ACCESS_KEY`: The secret key for the identity above
-- `FILE_ENCRYPTION_PASSWORD`: Passphrase for encryption of the archive files
 
 The rest of the configuration variables explained:
 
